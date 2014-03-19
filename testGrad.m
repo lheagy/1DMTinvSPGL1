@@ -39,7 +39,7 @@ tab = nan(1,4);
 for i=1:n
     h = 10^(-i+2);
     fnew = fun(x+h*v);
-    tab(i,:) = [i, norm(fnew - f), norm(fnew - f - h*g'*v) nan];
+    tab(i,:) = [i, norm(fnew - f), norm(fnew - f - h*g*v) nan];
     if i > 1
         tab(i,4) = log10(tab(i-1,3)./tab(i,3));
     end

@@ -1,7 +1,7 @@
 % fictSourceTest
-
-clear all
-close all
+% 
+% clear all
+% close all
 %clc
 
 f = 1 ; %logspace(-2,5,10);
@@ -26,6 +26,10 @@ errBi = zeros(N-2,1);
 errE2 = zeros(N-2,1);
 errEi = zeros(N-2,1);
 
+% model.transform  = @(sigma) log(sigma);
+% model.itransform = @(sigma) exp(sigma);
+% model.transformderiv = @(sigma) diag(sparse(exp(sigma)));
+
 for i = 1:N-2
     n = 2^(3+i);
     h = rand(n,1); L = sum(h);
@@ -33,14 +37,13 @@ for i = 1:N-2
     mesh = getMesh(n,0,h);
     z = mesh.z;
     zc = mesh.zc; 
-    
     model.sigma = sigma(zc);
     model.mu    = mu(zc);
     
     sb = s1(zc);
     se = s2(z);
     
-    [d,E,B,ops] = get1DMTfwd(mesh,model,f,sb,se,'BOTH');
+    [d, ops, E, B] = get1DMTfwd(model,mesh,f,sb,se,'E');
     
     errB2(i) = norm(ops.Linv\(B - b(zc)));
     errBi(i) = norm(B - b(zc),'inf');

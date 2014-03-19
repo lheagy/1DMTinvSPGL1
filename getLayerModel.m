@@ -22,5 +22,5 @@ for i = nd-1:-1:1
     mmu(ic)    = mu(i);
 end
 
-model.sigma = msigma;
+model.m = msigma;
 model.mu    = mmu;
