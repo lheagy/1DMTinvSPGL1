@@ -1,10 +1,15 @@
 % 1DFDEM Inversion
+%
+% Lindsey J. Heagy
+% last modified: March 26, 2014
+%
+%% 
 
 clear all
 close all
 clc
 
-addpath(genpath('../spgl1'));
+addpath(genpath('../spgl1')); % Depends on SPGL1general
 
 %% Mesh Parameters
 nc   = 0; % number of core cells

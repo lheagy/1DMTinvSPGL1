@@ -1,6 +1,7 @@
 % function  [f,g] = phid(r,params)
 % data misfit function
-
+% Lindsey J. Heagy
+% last modified: March 26, 2014
 
 function  [f,g] = phid(r,params)
 

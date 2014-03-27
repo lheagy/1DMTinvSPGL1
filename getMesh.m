@@ -1,13 +1,12 @@
+% function mesh = getMesh(nc,np,h)
+%
+% Lindsey J. Heagy
+% last modified: March 26, 2014
+
 function mesh = getMesh(nc,np,h)
 if nargin < 3
     h = 1;
 end
-
-% dz = [h].^np;
-
-%dz  = h.*[ones(nc,1); (exp(1)).^[1:np]'];
-% z  = [0; cumsum(dz)];
-% zc = z(1:end-1) + diff(z)/2;
 
 if numel(h) < 2;
     if np > 0
