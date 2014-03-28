@@ -10,9 +10,7 @@ end
 
 if numel(h) < 2;
     if np > 0
-        zp = logspace(log10(h),log10(3e5),np)';
-        zp = h/zp(1)*zp;
-        hp = diff(zp);
+        hp = logspace(log10(h),4,np)';
     else
         hp = [];
     end

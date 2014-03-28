@@ -14,12 +14,12 @@ addpath(genpath('../spgl1')); % Depends on SPGL1general
 %% Mesh Parameters
 nc   = 0; % number of core cells
 np   = 90; % number of padding cells
-dz   = 1e-1;
-frange = [0 2]; % log10 of fmin, fmax
+dz   = 1e0;
+frange = [-2 2]; % log10 of fmin, fmax
 
 mu0  = 4e-7*pi;
 mesh = getMesh(nc,np,dz);
-nf   = 30;
+nf   = 10;
 
 nd   = nf*2; % number of data
 %% Model
@@ -50,25 +50,27 @@ nzc = mesh.nzc;
 
 % add noise to data
 percn = 0.03;
-noise = percn*randn(nd,1).*dtrue;
-dobs = dtrue+0*noise;
+noise = percn*randn(nd,1).*abs(dtrue);
+dobs = dtrue+noise;
 
 % Data weight
-perc = 0.03;
-flr  = 0.01*min(abs(dobs));
-Wd   = perc*abs(dobs(:)) + flr;
+perc = 0.01;
+flr  = 0.03;
+flrr  = flr*mean(abs(dobs)); %(1:nf)));
+flri  = flr*mean(abs(dobs)); %(nf+1:end)));
+Wd   = perc*abs(dobs) + [flrr*ones(nf,1);flri*ones(nf,1)];
 Wd   = sdiag(1./Wd);
 
 % Model Weights
-alphas = 1e-4;
-alphaz = 1;
+alphas = 1;
+alphaz = 1e-2;
 Wms = alphas*speye(mesh.nzc);
 
 t   = log(mesh.z);
-dt  = diff(t);
+dt  = log(mesh.dz);
 dts = (dt(1:end-1) + dt(2:end))/2;
 Wmd = sdiag([0; 1./dts])*alphaz*spdiags([-1*ones(nzc,1), ones(nzc,1)],-1:0,nzc,nzc);
-Wm = [Wms]; %;Wmd];
+Wm  = [alphas*Wms]; %alphaz*Wmd];
 
 [n,m] = size(Wm);
 if n~=m
@@ -78,7 +80,7 @@ end
 
 % Initial guess
 m0 = mref*ones(mesh.nzc,1);
-d0 = get1DMTpaper(m0,model,mesh,f);
+d0 = get1DMTfwd(m0,model,mesh,f);
 
 % target misfit
 chifact = 1;
@@ -98,12 +100,17 @@ project    = @WProjector;
 
 %% put options and params on structure
 
+% function handles
 options.primal_norm = funPrim;
 options.dual_norm   = funDual;
 options.project     = project;
 options.funPenalty  = funPenalty;
+%options.stepMax     = 1e2;
+% weights
 options.weights     = Wm;  
 params.Wd           = Wd;
+
+
 
 %% Feed to SPGLGeneral
 [mpred,r,g,info] = spgl1General(funFwd, dobs, 0, target, m0, options, params);
