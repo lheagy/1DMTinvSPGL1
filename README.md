@@ -1,5 +1,5 @@
-1DMTinvSPGL
-===========
+1DMTinvSPGL1
+============
 
 Lindsey Heagy
 lheagy@eos.ubc.ca
