@@ -31,6 +31,9 @@ nd   = nf*2; % number of data
 mref = -2;      % log of reference sigma
 mu0  = 4e-7*pi; % magnetic permeability
 
+%% Mesh
+mesh = getMesh(nc,exp(mref),10.^frange);
+
 %% Model
 eta = 4;
 t = log(mesh.zc);
@@ -56,21 +59,21 @@ dtrue = get1DMTfwd(m,model,mesh,f);
 nzc = mesh.nzc; 
 
 % add noise to data
-percn = 0.02;
+percn = 0.03;
 noise = percn*randn(nd,1).*abs(dtrue);
 dobs = dtrue+noise;
 
 % Data weight
-perc = 0.02;
-flr  = 0.02;
+perc = 0.03;
+flr  = 0.003;
 flrr  = flr*mean(abs(dobs(1:nf)));
 flri  = flr*mean(abs(dobs(nf+1:end)));
 Wd   = perc*abs(dobs) + [flrr*ones(nf,1);flri*ones(nf,1)];
 Wd   = sdiag(1./Wd);
 
 % Model Weights
-alphas = 1;
-alphaz = 0.5;
+alphas = 0.5;
+alphaz = 1;
 Wms = speye(mesh.nzc);
 
 t   = log(mesh.z);
@@ -121,5 +124,25 @@ params.Wd           = Wd;
 
 
 
-%% Feed to SPGLGeneral
+%% Run Inversion Using SPGLGeneral
 [mpred,r,g,info] = spgl1General(funFwd, dobs, 0, target, m0, options, params);
+
+
+%% Plot Results
+% data
+figure
+semilogx(f,dtrue(1:nf),f,dtrue(1:nf)+r(1:nf),'o','linewidth',2,'markersize',8); hold on; semilogx(f,dtrue(nf+1:end),'--',f,dtrue(nf+1:end)+r(nf+1:end),'s','linewidth',2,'markersize',8);
+xlabel('Frequency (Hz)', 'fontsize',16)
+ylabel('Datum','fontsize',16)
+set(gca,'fontsize',16)
+legend('True Data, Real Component','Predicted Data, Real Component','True Data, Complex Component','Predicted Data, Complex Component')
+
+
+% model
+figure
+semilogx(mesh.zc,mtrue,mesh.zc,mpred+mref,'o','linewidth',2)
+xlabel('Depth, z (m)', 'fontsize',16)
+ylabel('m(z) + m_{ref}','fontsize',16)
+set(gca,'fontsize',16)
+axis([mesh.z(1) mesh.z(end),-3,0])
+legend('True Model','Recovered Model','location','northwest')
