@@ -8,12 +8,13 @@ lheagy@eos.ubc.ca
 
 Inverse Problem for the 1D magnetotelluric problem using SPGL1general. 
 
+It depends on SPGL1 : https://github.com/lheagy/spgl1
+
+
 The work is a part of the CPSC 546: Computational Optimization course 
 project. Following the implementation of the 1D MT forward problem 
 described by Haber et al., 2000, we then apply the generalized SPGL1 to
 solve the inverse problem.
-
-
 
 
 References: 
