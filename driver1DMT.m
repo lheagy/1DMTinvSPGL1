@@ -38,7 +38,8 @@ mesh = getMesh(nc,exp(mref),10.^frange);
 eta = 4;
 t = log(mesh.zc);
 
-mtrue = mref+2*exp(-(t-2).^2/2)+-1*exp(-(t-3).^2/3);
+mb = -2;
+mtrue = mb+2*exp(-(t-0.025).^2/2)-1*exp(-(t-3.5).^2/3);
 model.mu = mu0*ones(mesh.nzc,1);
 
 model.transform = @(m) exp(m);
@@ -72,8 +73,9 @@ Wd   = perc*abs(dobs) + [flrr*ones(nf,1);flri*ones(nf,1)];
 Wd   = sdiag(1./Wd);
 
 % Model Weights
-alphas = 0.5;
-alphaz = 1;
+alphas = 1;
+alphaz = 2;
+alpha2z = 8; 
 Wms = speye(mesh.nzc);
 
 t   = log(mesh.z);
@@ -81,7 +83,14 @@ dt  = log(mesh.dz);
 dts = (dt(1:end-1) + dt(2:end))/2;
 Wmd = sdiag([1./dts])*spdiags([-1*ones(nzc,1), ones(nzc,1)],-1:0,nzc,nzc);
 Wmd(1,1) = 0;
-Wm  = [alphas*Wms; alphaz*Wmd];
+
+% sdiag([1./dts]).^2*
+Wmd2 = spdiags([-1*ones(nzc,1), 2*ones(nzc,1), -1*ones(nzc,1)],[-1:1],nzc,nzc);
+Wmd2(1,[1:2]) = 0; 
+Wmd2(end,[end-1:end]) = 0; 
+
+Wm  = [alphas*Wms; alphaz*Wmd; alpha2z*Wmd2];
+
 
 [n,m] = size(Wm);
 if n~=m
@@ -119,7 +128,10 @@ options.funPenalty  = funPenalty;
 %options.nPrevVals   = 10;
 % options.stepMax     = 1e1;
 % weights
-options.weights     = Wm;  
+options.weights     = Wm; 
+options.iterations  = 50; 
+% options.optTol      = target*0.01;
+options.decTol      = 1; 
 params.Wd           = Wd;
 
 
