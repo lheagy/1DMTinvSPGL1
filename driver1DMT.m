@@ -5,7 +5,7 @@
 %
 % Lindsey J. Heagy
 % lheagy@eos.ubc.ca
-% last modified: April 5, 2014
+% last modified: December 8, 2014
 %
 % ------------------------------------------------------------------------%
 
@@ -133,7 +133,7 @@ options.iterations  = 50;
 % options.optTol      = target*0.01;
 options.decTol      = 1; 
 params.Wd           = Wd;
-
+options.saveOptPath = 1; 
 
 
 %% Run Inversion Using SPGLGeneral
