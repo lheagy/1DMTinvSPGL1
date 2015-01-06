@@ -24,8 +24,8 @@ nc   = 90;      % number of padding cells
 
 % frequency 
 frange = [0 2]; % log10 of fmin, fmax
-nf   = 10;   % number of frequencies 
-nd   = nf*2; % number of data
+nf   = 10;      % number of frequencies 
+nd   = nf*2;    % number of data
 
 % reference model
 mref = -2;      % log of reference sigma
@@ -35,6 +35,7 @@ mu0  = 4e-7*pi; % magnetic permeability
 mesh = getMesh(nc,exp(mref),10.^frange);
 
 %% Model
+
 eta = 4;
 t = log(mesh.zc);
 
