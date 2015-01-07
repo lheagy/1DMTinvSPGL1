@@ -27,20 +27,14 @@
 % last modified: April 5, 2014
 % ------------------------------------------------------------------------%
 
-function mesh = getMesh(n,sig,f,zmin,zmax)
+function mesh = getMesh(n,sig,f,m)
 
-if nargin < 4
-    zmin = 500/sqrt(max(sig)*max(f));
-    zmin = zmin/2;
-end
+zmax = 500/sqrt(min(sig)*min(f));
+zmax = 3*zmax;
 
-if nargin < 5
-    zmax = 500/sqrt(min(sig)*min(f));
-    zmax = 2*zmax;
-end
-
-zc = logspace(log10(zmin),log10(zmax),n+1);
+zc = logspace(-1,log10(zmax),n+1);
 dz = diff(zc);
+
 z  = [cumsum(dz)]-dz(1);
 zc = z(1:end-1) + diff(z)/2;
 

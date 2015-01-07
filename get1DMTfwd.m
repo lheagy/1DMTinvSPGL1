@@ -1,17 +1,46 @@
 % function [dobs,J] = get1DMTfwd(m,model,mesh,f,v,q)
 %
-% get1DMTfwd 
+% get1DMTfwd solves the 1D magnetotelluric problem
 %
 % Follows: 
 %   E. Haber, U. Ascher, and D. Oldenburg, On optimization techniques for
 %   solving nonlinear inverse problems, Inverse Problems 16 (2000)
 %   1263-1280
 %
+% INPUTS:
+%   deltam : m - mref
+%   model  : structure containing fields 
+%               mref : reference model (optional, default = 0) 
+%               transform : model transform that maps the model to
+%                               electrical conductivity
+%               itransform : inverse transform - maps from conductivity to
+%                               model space
+%               transformderiv : derivative of the model transform that
+%                               maps from model to electrical conductivity
+% 
+%   mesh   : structure containing fields
+%               dz  : cell spacing
+%               z   : nodal mesh
+%               zc  : cell centered mesh
+%               nz  : number of nodes
+%               nzc : number of cell centers
+%
+%   f      : vector of frequencies 
+%   v      : (optional) vector to multiply (J*v) 
+%   q      : (optional) source term, default = [1,0,0,...,0]'
+%
+% OUTPUTS:
+%   dobs   : observed data, [er;ei]
+%   J      : sensitivity matrix 
+%
 % Lindsey J. Heagy
 % lheagy@eos.ubc.ca
-% last modified : March 26, 2014
+%
+%
+% TODOs: right now model transform hard coded as exp mod
 
-function [dobs,J] = get1DMTfwd(m,model,mesh,f,v,q)
+
+function [dobs,J] = get1DMTfwd(deltam,model,mesh,f,v,q)
 
 if isfield(model,'mref')
     mref = model.mref;
@@ -19,7 +48,13 @@ else
     mref = 0;
 end
 
-mod = m+mref;
+if ~isfield(model,'transform')
+    model.transform = @(m) m     ; 
+    model.transformderiv = @(m) 1; 
+end
+
+
+mod = deltam+mref;
 
 A = getApaper(mod,mesh,f);
 
@@ -33,7 +68,6 @@ end
 
 u = A\q;
 
-
 er = u(1:4:end);
 ei = u(2:4:end);
 erobs = er(1:nz:end);
@@ -42,9 +76,9 @@ dobs = [erobs; eiobs];
 
 if nargout > 1
     if nargin > 4
-        J = getJ(m,mesh,f,u,A,v);
+        J = getJ(deltam,mesh,f,u,A,v);
     else
-        J = getJ(m,mesh,f,u,A);
+        J = getJ(deltam,mesh,f,u,A);
     end
     Jr = J(1:4:end,:); Jr = Jr(1:nz:end,:);
     Ji = J(2:4:end,:); Ji = Ji(1:nz:end,:);

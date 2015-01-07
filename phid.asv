@@ -31,8 +31,8 @@ if nargout > 1
     
     if nargout > 2
         WdtWd = Wd'*Wd;
-        rrt   = r*r';
-        H     = -(WdtWd*rrt*WdtWd)/f^3 + WdtWd/f ;
+        mmt   = m*m';
+        H     = -(WdtWd*mmt*WdtWd)/f^3 + WtW ;
     end
 end
 
