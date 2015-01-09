@@ -1,4 +1,4 @@
-% function  [f,g] = phid(r,params)
+% function  [f,g,H] = phid(r,params)
 % 
 % data misfit function and derivative
 %
@@ -20,19 +20,33 @@
 function  [f,g,H] = phid(r,params)
 
 Wd = params.Wd;
-wr = Wd*r;
 
-w2r = Wd'*wr;
+if isfield(params,'eps')
+    eps = params.eps;
+else
+    eps = 1e-10;
+end
 
-f = norm(wr,2);
+
+Wdr = Wd*r; 
+f   = norm(Wdr,2);
 
 if nargout > 1
-    g = w2r/f;
+    if f < eps
+        g = zeros(numel(r),1);
+    else
+        Wd2r = Wd'*Wdr;
+        g = Wd2r/f;
+    end
     
-    if nargout > 2
-        WdtWd = Wd'*Wd;
-        rrt   = r*r';
-        H     = -(WdtWd*rrt*WdtWd)/f^3 + WdtWd/f ;
+    if nargout > 2 
+        if f < eps
+            H = Wd'*Wd; % this is cheating!
+        else
+            WdtWd = Wd'*Wd;
+            rrt   = r*r';
+            H     = -(WdtWd*rrt*WdtWd)/f^3 + WdtWd/f ;
+        end
     end
 end
 

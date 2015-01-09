@@ -1,4 +1,9 @@
-function [mpred, r, info] = InvGNcoolBeta(funFwd, dobs, target, m0, options, params)
+function [mpred, r, info] = InvGNcoolBeta(funFwd, dobs, m0, target, options, params)
+
+% initialize outputs
+r     = nan;
+mpred = m0;
+info  = struct;
 
 %% Check for parameters, if not there, set defaults
 
@@ -16,31 +21,31 @@ else
 end
 
 if ~isfield(options,'maxStep')
-    maxStep = 10^6;
+    maxStep = 10;
 else
     maxStep = options.maxStep;
-end    
+end
 
 if ~isfield(options,'LSreduction');
     LSreduction = 1e-4;
-else 
+else
     LSreduction = options.LSreduction;
 end
 
 if ~isfield(options,'LSshorten')
-    LSshorten = 0.5;
+    LSshorten = 0.25;
 else
     LSshorten = options.LSshorten;
 end
 
 if ~isfield(options,'tolF')
     tolF = 1e-1;
-else 
+else
     tolF = options.tolF;
 end
 
 if ~isfield(options,'tolX')
-    tolX = 1e-1;
+    tolX = 1e-8;
 else
     tolX = options.tolX;
 end
@@ -66,17 +71,17 @@ end
 
 % function handles for data misfit and model regularization
 funPenalty  = options.funPenalty;
-primal_norm = options.primal_norm; 
-primal_normDeriv = options.primal_normDeriv;
+primal_norm = options.primal_norm;
 
 %% Set Beta schedule
 % if no initial beta given, estimate it by one iteration of the power
-% method (with magic number 100!) 
+% method (with magic number 100!)
+
 if ~isfield(params,'beta0')
     x0 = rand(numel(m0),1);
     [~,J0] = funFwd(m0);
-    top = x0'*(J0'*(Wd'*(Wd*(J0*x0))));
-    bot = x0'*(Wm'*(Wm*x0)); 
+    top = norm(Wd*(J0*x0),2);
+    bot = norm(Wm*x0,2);
     beta0 = 100*sqrt(top/bot);
 else
     beta0 = params.beta0;
@@ -96,63 +101,143 @@ else
     coolingfact = params.coolingfact;
 end
 
+%%
 % initialize space for data misfit, regularization and objective function
-phid = zeros(maxIt+1,1);
-phim = zeros(maxIt+1,1);
-phi  = zeros(maxIt+1,1);
-beta = zeros(maxIt+1,1); 
+fphid = zeros(maxIt,1);
+fphim = zeros(maxIt,1);
+f     = zeros(maxIt,1);
+beta  = zeros(maxIt,1);
+normg = zeros(maxIt,1);
 
 % create schedule
-betaupdate = false(maxIt,1);
-betaind = 1:coolingrate:maxIt;
+betaupdate          = false(maxIt,1);
+betaind             = 1:coolingrate:maxIt;
 betaupdate(betaind) = true;
 
 % start log
-logD = ' %5i  %9.4e  %9.4e  %9.2e  %9.1f \n';
-logH = ' %5s  %10s  %10s  %9s  %9s \n';
-fprintf('\n\n --------- INVERSION W/ GN & BETA COOLING --------- \n'); 
-fprintf(logH,'Iter','PhiD','PhiM','Beta','Objective');
+logD = ' %5i  %8i %9.4e  %9.4e  %9.2e  %9.1f %9.1f\n';
+logH = ' %5s  %8s %9s  %9s  %9s  %9s %9s \n';
+fprintf('\n\n -------------- INVERSION W/ GN & BETA COOLING ------------- \n');
+fprintf(logH,'Iter','LS Iter','PhiD','PhiM','Beta','Objective','Norm g');
 
 % initialize
-[d0,~] = funFwd(m0);
-r0      = dobs - d0;
-phid(1) = funPenalty(r0,params); 
-
-phim(1) = primal_norm(m0,Wm,params);
+m        = m0;
+[dpred,~]   = funFwd(m);
+r        = dobs - dpred;
+fphid(1) = funPenalty(r,params);
+fphim(1) = primal_norm(m,Wm,params);
 
 beta(1) = beta0;
-phi(1) = phid(1) + beta(1)*phim(1);
+f(1) = fphid(1) + beta(1)*fphim(1);
 
+LSit = 0; 
 %print
-fprintf(logD,0,phid(1),phim(1),beta(1),phi(1));
+%fprintf(logD,1,LSit,fphid(1),fphim(1),beta(1),phi(1),normg(1));
 
 %% perform inversion
-for i = 1:maxIt
-    % test if we have reached target misfit
-    if phid(i+1) <= target
-        mpred = m0;
-        break
-    end
+for i = 2:maxIt
     
-    dpred = funFwd(m0);
-    r     = dobs-dpred;
-    [phid(i+1),dphid] = phid(r,params);
-    []
+    % test if we have reached target misfit
+    if fphid(i-1) <= target
+        mpred = m0;
+        r = r(1:i);
+        info.fphid = fphid(1:i);
+        info.fphim = fphim(1:i);
+        info.phi   = f(1:i);
+        info.beta  = beta(1:i);
+        info.normg = normg(1:i);
+        info.exit  = 'Target';
+        fprintf(' --------- Target Reached ---------- \n');
+        return
+    end
     
     % check if beta should be update
-    if betaupdate(i) && i > 1
-        beta(i) = beta(i-1)*betafact;
+    if betaupdate(i)
+        beta(i) = beta(i-1)*coolingfact;
+    else
+        beta(i) = beta(i-1); 
     end
     
-    % compute GN update
+    % compute data, resudial
+    [dpred,J] = funFwd(m);
+    r         = dobs-dpred;
     
+    % compute phid, phim
+    [fphid(i),gphid,Hphid] = funPenalty(r,params);
+    [fphim(i),gphim,Hphim] = primal_norm(m,Wm,params);
     
+    f(i) = fphid(i) + beta(i)*fphim(i);
+    g    = J'*gphid + beta(i)*gphim;
+    H    = J'*(Hphid + gphid*gphid')*J + beta(i)*Hphim;
+    normg(i) = norm(g);
     
-    fprintf(logD,0,phid(i+1),phim(i+1),beta(i+1),phi(i+1));
+    % print log
+    fprintf(logD,i-1,LSit,fphid(i),fphim(i),beta(i),f(i),normg(i));
+    
+    if normg(i) < tolG
+        fprintf('\n ---- |g| < tolG ------ \n');
+        mpred = m;
+        info.exit = 'tolG';
+        return
+    end
+    
+    % compute step
+    step = -g; %-H\g;
+    clear H
+    
+    % line search
+    LSit = 0;
+    keyboard
+    while 1
+        if LSit > maxItLS
+            warning('LineSearch:maxItLS','Line search broke :(');
+            info.exit = 'maxItLS';
+            return
+        end
+        
+        % check if step is too large, if so... scale back
+        if max(abs(step)) > maxStep
+            step = step * maxStep/max(abs(step));
+            fprintf('   ---- Step Scaled back ---- \n'); 
+        end
+        
+        % take a step
+        mtry = m+step;
+ 
+        % see if there is sufficient change in the model
+        if norm(m-mtry) < tolX
+            warning('Linesearch:normX','Insufficient change in model');
+            mpred = mtry;
+            info.exit = 'tolX';
+            break
+        end
+        
+        % compute data, resudial
+        dtry = funFwd(mtry);
+        rtry = dobs-dtry;
+        
+        % compute phid, phim, ftry
+        [fphidtry] = funPenalty(rtry,params);
+        [fphimtry] = primal_norm(mtry,Wm,params);
+        ftry       = fphidtry + beta(i)*fphimtry;
+        
+        % LSshorten
+        if f(i) - ftry > tolF % if sufficient decrease, exit line search
+            break
+        end
+        step = step*LSshorten;
+        LSit = LSit + 1;
+    end
+    
+    m = mtry; % update model
+    
     
     
 end
 
+mpred = m;
+warning('GN:maxit','Maximum number og GN iterations reached');
+info.exit = 'maxIT';
 
 
 end
