@@ -3,7 +3,7 @@ function [f,g,H] = phim(m,Wm,params)
 if isfield(params,'eps')
     eps = params.eps;
 else
-    eps = 1e-10;
+    eps = 1e-6;
 end
 
 Wmm = Wm*m;
@@ -19,12 +19,11 @@ if nargout > 1
     if nargout > 2
 
         if f < eps
-            H = Wm'*Wm; % This is cheating!
-            %sparse(numel(m));
+            H = Wm'*Wm;
         else
             WmtWm = Wm'*Wm;
             mmt   = m*m';
-            H     = -(WmtWm*mmt*WmtWm)/f^3 + WmtWm/f ;
+            H      = -(WmtWm*mmt*WmtWm)/f^3 + WmtWm/f ;
         end
     end
 end

@@ -41,7 +41,7 @@ if nargout > 1
     
     if nargout > 2 
         if f < eps
-            H = Wd'*Wd; % this is cheating!
+            H = Wd'*Wd;
         else
             WdtWd = Wd'*Wd;
             rrt   = r*r';

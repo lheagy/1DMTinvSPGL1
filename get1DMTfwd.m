@@ -36,8 +36,6 @@
 % Lindsey J. Heagy
 % lheagy@eos.ubc.ca
 %
-%
-% TODOs: right now model transform hard coded as exp mod
 
 
 function [dobs,J] = get1DMTfwd(deltam,model,mesh,f,v,q)
@@ -76,9 +74,9 @@ dobs = [erobs; eiobs];
 
 if nargout > 1
     if nargin > 4
-        J = getJ(deltam,mesh,f,u,A,v);
+        J = getJ(mod,mesh,f,u,A,model,v);
     else
-        J = getJ(deltam,mesh,f,u,A);
+        J = getJ(mod,mesh,f,u,A,model);
     end
     Jr = J(1:4:end,:); Jr = Jr(1:nz:end,:);
     Ji = J(2:4:end,:); Ji = Ji(1:nz:end,:);
@@ -115,7 +113,7 @@ for j = 1:nf
     Rblks = B0;
     Sblks = [];
     for i = 1:nzc
-        ind = 4*(i-1)+1:4*i;
+        %ind = 4*(i-1)+1:4*i;
         R     = getR(zc(i),r(j),m(i));
         Rblks = blkdiag(Rblks,R);
         S     = getS(zc(i),r(j),m(i));
@@ -131,7 +129,7 @@ end
     
 end
 
-function G = getGpaper(m,mesh,f,u)
+function G = getG(m,mesh,f,u,model)
 
 nf = numel(f);
 
@@ -153,8 +151,8 @@ for j = 1:nf
     u1f = u1((j-1)*nz+1:j*nz);
     u2f = u2((j-1)*nz+1:j*nz);
     for i = 1:nzc
-        gki = getGki(dz(i),r(j),m(i),u1f(i:i+1),u2f(i:i+1));
-        Gki = sparse(4,nzc);
+        gki = getGki(dz(i),r(j),m(i),u1f(i:i+1),u2f(i:i+1),model);
+        Gki = zeros(4,nzc);
         Gki(:,i) = gki; 
         Gk  = [Gk;Gki]; 
     end
@@ -165,9 +163,9 @@ end
 end
 
 
-function J = getJ(m,mesh,f,u,A,v)
-G = getGpaper(m,mesh,f,u);
-if nargin>5
+function J = getJ(m,mesh,f,u,A,model,v) %deltam,mesh,f,u,A,model
+G = getG(m,mesh,f,u,model);
+if nargin>6
     G = G*v;
 end
 J = -A\G;
@@ -194,8 +192,9 @@ T = getT(r,m);
 R = h.^-1*I-T;
 end
 
-function Gki = getGki(h,r,m,u1,u2)
+function Gki = getGki(~,r,m,u1,u2,model)
+transformderiv = model.transformderiv;
 Gki = sparse(4,1);
-Gki(3) = r*exp(m)*sum(u2)/2;
-Gki(4) = -r*exp(m)*sum(u1)/2;
+Gki(3) = r*transformderiv(m)*sum(u2)/2;
+Gki(4) = -r*transformderiv(m)*sum(u1)/2;
 end

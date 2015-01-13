@@ -3,7 +3,7 @@
 % Lindsey J. Heagy
 % last modified: March 26, 2014
 
-function x = WProjector(y,Wm,tau,params)
+function x = WProjector(y,Wm,tau,~)
 
 if isempty(Wm)
     Wm = 1;

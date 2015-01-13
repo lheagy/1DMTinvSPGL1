@@ -11,7 +11,7 @@
 %% House-keeping 
 clear all
 close all
-clc
+% clc
 
 testit = false; 
 
@@ -22,7 +22,7 @@ if testit; addpath('../tests/'); ntest = 7; end
 %% Parameters
 
 % mesh
-nc   = 90;      % number of cells
+nc   = 91;      % number of cells
 
 % frequency 
 frange = [-2, 2]; % log10 of fmin, fmax
@@ -30,7 +30,7 @@ nf   = 10;      % number of frequencies
 nd   = nf*2;    % number of data
 
 % reference model
-mref = -0.5;      % log of reference sigma
+mref = -1;      % log of reference sigma
 mu0  = 4e-7*pi; % magnetic permeability
 
 %% Mesh
@@ -39,10 +39,13 @@ mesh = getMesh(nc,exp(mref),10.^frange,exp(-1),3e5);
 %% Model
 
 eta = log(10^4);
-t = log(mesh.zc);
-
+%t = log(mesh.zc);
+t = log10(mesh.zc); 
 mb = -1;
-mtrue = mb+3*exp(-(t-0.2*eta).^2/1)+1.5*exp(-(t-0.6*eta).^2/2);
+%mtrue = mb*ones(mesh.nzc,1);
+%mtrue((t > 0.5)&(t < 2)) = 1;
+%mtrue((t > 2.5)&(t< 3.5)) = 0.75; 
+mtrue = mb+1*exp(-(t-0.25*eta).^2); %+1.5*exp(-(t-0.85*eta).^2/4);
 mtrue = mtrue(:); 
 model.mu = mu0*ones(mesh.nzc,1);
 
@@ -75,7 +78,7 @@ noise = percn*randn(nd,1).*abs(dtrue);
 dobs = dtrue+noise;
 
 % Data weight
-perc = 0.03;
+perc = 0.05;
 flr  = 0.003;
 flrr  = flr*mean(abs(dobs(1:nf)));
 flri  = flr*mean(abs(dobs(nf+1:end)));
@@ -163,10 +166,10 @@ if testit
     testGrad(fun,rand(numel(m0),1),ntest);
     fprintf('\n\n');
 
-    params.beta = 10^4; 
+    params.beta = 0; 
     fprintf('Testing Objective Function \n'); 
     fun = @(m) funObjective(m,params);
-    testGrad(fun,randn(size(m0)),ntest);
+    testGrad(fun,rand(size(m0)),ntest);
     fprintf('\n\n');
     
     fprintf('Testing Objective Function Hessian \n'); 
@@ -188,51 +191,47 @@ options.funPenalty  = funPenalty;
 % options.stepMax     = 1e1;
 % weights
 options.weights     = Wm; 
-options.iterations  = 20; 
-% options.optTol      = target*0.01;
+options.iterations  = 100; 
 % options.bpTol       = 1e-4; 
-% options.decTol      = 1e-6; 
+%options.decTol      = 1e-3; 
 options.saveOptPath = 1;
 options.saveX       = 1;
 
 
 %% Run Inversion Using SPGLGeneral
-% [mpred,r,g,info] = spgl1General(funFwd, dobs, 0, target, m0, options, params);
-% 
-% save('spgl1GeneralResults','mpred','r','g','info'); 
-% keyboard
+[mpred,r,g,info] = spgl1General(funFwd, dobs, 0, target, m0, options, params);
+save('spgl1GeneralResults','mpred','r','g','info'); 
 
 %% Gauss newton params 
 % parameters for Gauss Newton with cooling
-params.coolingrate = 2;
+% params.beta0       = 1000; 
+params.coolingrate = 4;
 params.coolingfact = 1/2;
 
 
 %% Run Inversion Using Gauss-Newton with Cooling on Beta
-
+ 
 [mpred_gn, r_gn, info_gn] = InvGNcoolBeta(funFwdGN, dobs, m0, target,options, params);
 
-%%
-r = r_gn;
-mpred = mpred_gn; 
+
 %% Plot Results
 % data
 figure
-semilogx(f,dtrue(1:nf),'-',f,dtrue(1:nf)+r(1:nf),'o','linewidth',2,'markersize',8);
+semilogx(f,dtrue(1:nf),'-',f,dtrue(1:nf)+r(1:nf),'o',f,dtrue(1:nf)+r_gn(1:nf),'v','linewidth',2,'markersize',8);
 hold on; 
-semilogx(f,dtrue(nf+1:end),'--',f,dtrue(nf+1:end)+r(nf+1:end),'s','linewidth',2,'markersize',8);
+semilogx(f,dtrue(nf+1:end),'--',f,dtrue(nf+1:end)+r(nf+1:end),'s',f,dtrue(nf+1:end)+r_gn(nf+1:end),'^','linewidth',2,'markersize',8);
 xlabel('Frequency (Hz)', 'fontsize',16)
 ylabel('Datum','fontsize',16)
 set(gca,'fontsize',16)
-legend('True Data, Real Component','Predicted Data, Real Component','True Data, Complex Component','Predicted Data, Complex Component')
+legend('True, Real','Predicted SPGL, Real', 'Predicted GN, Real', 'True, Imag','Predicted SPGL, Imag','Predicted GN, Imag'); 
 
 %% model
 figure
-semilogx(mesh.zc,mtrue,'-',mesh.zc,mpred+mref,'o','linewidth',2)
+semilogx(mesh.zc,mtrue,'-',mesh.zc,mpred+mref,'o',mesh.zc,mpred_gn+mref,'s','linewidth',2)
 xlabel('Depth, z (m)', 'fontsize',16)
 ylabel('m(z) + m_{ref}','fontsize',16)
 set(gca,'fontsize',16)
 axis([1e-1,1e6,min(mtrue)-0.5,max(mtrue)+0.5])
-legend('True Model','Recovered Model','location','northwest')
+legend('True','Recovered SPGL','Recovered GN','location','northwest')
 
 

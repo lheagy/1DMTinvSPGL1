@@ -15,13 +15,13 @@ else
 end
 
 if ~isfield(options,'iterationsLS')
-    maxItLS = 10;
+    maxItLS = 20;
 else
     maxItLS = options.iterationsLS;
 end
 
 if ~isfield(options,'maxStep')
-    maxStep = 10;
+    maxStep = 10^6;
 else
     maxStep = options.maxStep;
 end
@@ -45,7 +45,7 @@ else
 end
 
 if ~isfield(options,'tolX')
-    tolX = 1e-8;
+    tolX = 1e-16;
 else
     tolX = options.tolX;
 end
@@ -82,7 +82,7 @@ if ~isfield(params,'beta0')
     [~,J0] = funFwd(m0);
     top = norm(Wd*(J0*x0),2);
     bot = norm(Wm*x0,2);
-    beta0 = 100*sqrt(top/bot);
+    beta0 = 10^2*sqrt(top/bot);
 else
     beta0 = params.beta0;
 end
@@ -139,8 +139,7 @@ for i = 2:maxIt
     
     % test if we have reached target misfit
     if fphid(i-1) <= target
-        mpred = m0;
-        r = r(1:i);
+        mpred = m;
         info.fphid = fphid(1:i);
         info.fphim = fphim(1:i);
         info.phi   = f(1:i);
@@ -161,14 +160,16 @@ for i = 2:maxIt
     % compute data, resudial
     [dpred,J] = funFwd(m);
     r         = dobs-dpred;
+    dr        = -1; 
     
     % compute phid, phim
     [fphid(i),gphid,Hphid] = funPenalty(r,params);
     [fphim(i),gphim,Hphim] = primal_norm(m,Wm,params);
     
     f(i) = fphid(i) + beta(i)*fphim(i);
-    g    = J'*gphid + beta(i)*gphim;
-    H    = J'*(Hphid + gphid*gphid')*J + beta(i)*Hphim;
+    g    = dr*J'*gphid + beta(i)*gphim;
+    H    = J'*(Hphid)*J + beta(i)*Hphim; %J'*(Hphid + gphid*gphid')*J + beta(i)*Hphim;
+
     normg(i) = norm(g);
     
     % print log
@@ -182,17 +183,32 @@ for i = 2:maxIt
     end
     
     % compute step
-    step = -g; %-H\g;
+    step = -H\g;
     clear H
-    
+
     % line search
     LSit = 0;
-    keyboard
+
     while 1
-        if LSit > maxItLS
+        if LSit > maxItLS % cool beta and try again
+            mpred = m; 
+            beta(i) = beta(i-1)*coolingfact;
+            betaupdate(i:end) = false;
+            betaupdate(i:coolingrate:end) = true;
             warning('LineSearch:maxItLS','Line search broke :(');
             info.exit = 'maxItLS';
-            return
+            break
+        end
+        
+        % see if there is sufficient change in the model - if not, cool
+        % beta and start again
+        if norm(step) < tolX
+            warning('Linesearch:normX','Insufficient change in model, beta reduced'); 
+            beta(i) = beta(i-1)*coolingfact;
+            betaupdate(i:end) = false;
+            betaupdate(i:coolingrate:end) = true;
+            info.exit = 'tolX';
+            break
         end
         
         % check if step is too large, if so... scale back
@@ -204,13 +220,6 @@ for i = 2:maxIt
         % take a step
         mtry = m+step;
  
-        % see if there is sufficient change in the model
-        if norm(m-mtry) < tolX
-            warning('Linesearch:normX','Insufficient change in model');
-            mpred = mtry;
-            info.exit = 'tolX';
-            break
-        end
         
         % compute data, resudial
         dtry = funFwd(mtry);
@@ -228,7 +237,9 @@ for i = 2:maxIt
         step = step*LSshorten;
         LSit = LSit + 1;
     end
-    
+    fphid(i) = fphidtry;
+    fphim(i) = fphimtry; 
+    f(i)     = ftry; 
     m = mtry; % update model
     
     
@@ -236,7 +247,7 @@ for i = 2:maxIt
 end
 
 mpred = m;
-warning('GN:maxit','Maximum number og GN iterations reached');
+warning('GN:maxit','Maximum number of GN iterations reached');
 info.exit = 'maxIT';
 
 
